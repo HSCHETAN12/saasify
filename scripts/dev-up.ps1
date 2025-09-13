@@ -1,0 +1,7 @@
+'$ErrorActionPreference = "Stop"' 
+'Write-Host "Starting SaaSify infra..."' 
+'docker compose --env-file docker/.env -f docker/docker-compose.yml up -d' 
+'Write-Host "Done. Open:"' 
+'Write-Host "  Adminer:   http://localhost:8088"' 
+'Write-Host "  Pulsar UI: http://localhost:8081"' 
+'Write-Host "  Conductor: http://localhost:5000"' 

@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: saasify-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: saasify-adminer
+    ports:
+      - "${ADMINER_PORT:-8088}:8080"
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: saasify-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
+
+  # Pulsar standalone (broker + bookie + REST)
+  pulsar:
+    image: apachepulsar/pulsar:3.2.4
+    container_name: saasify-pulsar
+    command: ["bin/pulsar", "standalone", "-nss"]  # no stream storage speeds up local
+    ports:
+      - "${PULSAR_PORT:-6650}:6650"      # binary client port
+      - "${PULSAR_HTTP_PORT:-8081}:8080" # admin REST/UI
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/admin/v2/brokers/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Conductor server + UI (using the all-in-one image)
+  conductor:
+    image: conductoross/conductor-standalone:3.15.2
+    container_name: saasify-conductor
+    environment:
+      # Uses internal Postgres by default; fine for learning.
+      # To use MySQL/Redis here later, you can override configs.
+      CONDUCTOR_SERVER_PORT: "8080"
+    ports:
+      - "${CONDUCTOR_SERVER_PORT:-8089}:8080" # server API
+      - "${CONDUCTOR_UI_PORT:-5000}:5000"     # UI
+    depends_on:
+      - mysql
+      - redis
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
